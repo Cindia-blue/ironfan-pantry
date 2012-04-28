@@ -1,17 +1,18 @@
 module HadoopCluster
   # installs given hadoop package using the configured deb version
-  def hadoop_package component
-    package_name = (component ? "#{node[:hadoop][:handle]}-#{component}" : "#{node[:hadoop][:handle]}")
-    package package_name do
-      if node[:hadoop][:deb_version] != 'current'
-        version node[:hadoop][:deb_version]
-      end
-    end
-  end
+  #  def hadoop_package component
+  #    package_name = (component ? "#{node[:hadoop][:handle]}-#{component}" : "#{node[:hadoop][:handle]}")
+  #    package package_name do
+  #      if node[:hadoop][:deb_version] != 'current'
+  #        version node[:hadoop][:deb_version]
+  #      end
+  #    end
+  #    #options "--force-yes"
+  #  end
 
   # the hadoop services this machine provides
   def hadoop_services
-    %w[namenode secondarynn jobtracker datanode tasktracker].select do |svc|
+    %w[namenode secondarynn resourcemanager datanode nodemanager].select do |svc|
       node[:announces]["#{node[:cluster_name]}-hadoop-#{svc}"]
     end
   end
@@ -19,9 +20,9 @@ module HadoopCluster
   # hash of hadoop options suitable for passing to template files
   def hadoop_config_hash
     Mash.new({
-        :aws              => (node[:aws] && node[:aws].to_hash),
-        :extra_classpaths => node[:hadoop][:extra_classpaths].map{|nm, classpath| classpath }.flatten,
-      }).merge(node[:hadoop])
+                 :aws              => (node[:aws] && node[:aws].to_hash),
+                 :extra_classpaths => node[:hadoop][:extra_classpaths].map{|nm, classpath| classpath }.flatten,
+             }).merge(node[:hadoop])
   end
 
   # Create a symlink to a directory, wiping away any existing dir that's in the way
@@ -30,7 +31,10 @@ module HadoopCluster
       action :delete ; recursive true
       not_if{ File.symlink?(dest) }
     end
-    link(dest){ to src }
+    if(dest!=nil && src!=nil)#lixh
+      link(dest){ to src }
+    end#lixh
+
   end
 
 end

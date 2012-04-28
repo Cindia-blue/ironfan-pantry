@@ -19,7 +19,29 @@
 # limitations under the License.
 #
 
-include_recipe 'hadoop_cluster'
-include_recipe 'runit'
+include_recipe "hadoop_cluster"
+include_recipe "runit"
 
-hadoop_service(:datanode)
+include_recipe "hadoop_cluster::cluster_conf"
+
+#change permission of file directory and prepare for start of datanode
+script "chown_datanode" do
+  interpreter "bash"
+  cwd "#{node[:hadoop][:common_home_dir]}"
+  code <<-EOH
+     chown -R hdfs:hadoop /home/ubuntu/hadoop/hadoop-0.23.0/logs
+     chown -R hdfs:hadoop /home/ubuntu/hadoop/hdfs/data
+  EOH
+end
+
+#start data node by daemon
+script "start_datanode" do
+  interpreter "bash"
+  cwd "#{node[:hadoop][:common_home_dir]}"
+  user 'hdfs'
+  code <<-EOH
+   ./sbin/hadoop-daemon.sh start datanode
+  EOH
+end
+#./bin/hadoop --config #{node[:hadoop][:conf_dir]} datanode -format
+#./sbin/hadoop-daemons.sh --config #{node[:hadoop][:conf_dir]} start datanode

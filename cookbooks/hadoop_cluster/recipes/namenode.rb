@@ -19,25 +19,53 @@
 # limitations under the License.
 #
 
-include_recipe 'hadoop_cluster'
-include_recipe 'runit'
+include_recipe "hadoop_cluster"
+include_recipe "runit"
 
-hadoop_service(:namenode)
+#get local IP
+arg = `ifconfig eth0 |grep "inet addr"| cut -f 2 -d ":"|cut -f 1 -d " "`
+node[:hadoop][:namenode   ][:addr] = arg.chomp
+puts "private_ip of namenode ="
+puts node[:hadoop][:namenode   ][:addr]
 
-# Script to boostrap the namenode (initial format, important HDFS dirs, etc)
-# purposefully not marked executable -- run with bash (script_name)
-template "#{node[:hadoop][:conf_dir]}/bootstrap_hadoop_namenode.sh" do
-  owner         "root"
-  mode          "0744"
-  variables     :hadoop => hadoop_config_hash
-  source        "bootstrap_hadoop_namenode.sh.erb"
+include_recipe "hadoop_cluster::cluster_conf"
+
+
+#change permission of file directory and prepare for start of namenode
+script "chown_Namenode" do
+  interpreter "bash"
+  cwd "#{node[:hadoop][:common_home_dir]}"
+  code <<-EOH
+     chown -R hdfs:hadoop /home/ubuntu/hadoop/hadoop-0.23.0/logs
+     chown -R hdfs:hadoop /home/ubuntu/hadoop/hdfs/name
+  EOH
 end
 
-# Script to boostrap the namenode (initial format, important HDFS dirs, etc)
-# purposefully not marked executable -- run with bash (script_name)
-template "#{node[:hadoop][:conf_dir]}/nuke_hdfs_from_orbit_its_the_only_way_to_be_sure.sh" do
-  owner         "root"
-  mode          "0744"
-  variables     :hadoop => hadoop_config_hash
-  source        "nuke_hdfs_from_orbit_its_the_only_way_to_be_sure.sh.erb"
+#format namenode
+script "Format_Namenode" do
+  interpreter "bash"
+  cwd "#{node[:hadoop][:common_home_dir]}"
+  user 'hdfs'
+  code <<-EOH
+     ./bin/hadoop namenode -format <<!
+Y
+!
+  EOH
 end
+
+#start namenode
+script "start_Namenode" do
+  interpreter "bash"
+  cwd "#{node[:hadoop][:common_home_dir]}"
+  user 'hdfs'
+  code <<-EOH
+     ./libexec/hadoop-config.sh
+     ./libexec/hdfs-config.sh
+     ./sbin/hadoop-daemon.sh start namenode
+  EOH
+end
+
+
+#./bin/hadoop namenode -format <<!
+#     Y
+#     !
